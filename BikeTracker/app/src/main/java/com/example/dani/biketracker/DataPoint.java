@@ -1,5 +1,10 @@
 package com.example.dani.biketracker;
 
+import android.location.Location;
+import android.util.Log;
+
+import com.google.protobuf.DescriptorProtos;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -10,10 +15,11 @@ public class DataPoint {
     private double latitud;
     //The suggestion can be -1, to stop, 0 to keep the velocity or 1 to accelerate
     private int suggestion;
-    private int speed;
-    private int acceleration;
+    private float speed;
+    private float acceleration;
+    private static String TAG = "DEBUGGING";
 
-    public DataPoint(long time, double longitud, double latitud, int suggestion, int speed, int acceleration){
+    public DataPoint(long time, double longitud, double latitud, int suggestion, float speed, float acceleration){
         this.time = time;
         this.longitud = longitud;
         this.latitud = latitud;
@@ -31,7 +37,6 @@ public class DataPoint {
         dataPointDoc.put("speed", speed);
         dataPointDoc.put("acceleration", acceleration);
         dataPointDoc.put("time", time);
-
 
         return dataPointDoc;
 
@@ -57,11 +62,11 @@ public class DataPoint {
         return suggestion;
     }
 
-    public int getSpeed() {
+    public float getSpeed() {
         return speed;
     }
 
-    public int getAcceleration() {
+    public float getAcceleration() {
         return acceleration;
     }
 }

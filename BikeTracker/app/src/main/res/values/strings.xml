@@ -18,5 +18,7 @@
 
     <!-- Strings related to session recording -->
     <string name="start_session">Start Session</string>
+    <string name="finish_session">Stop Session</string>
+
 
 </resources>
