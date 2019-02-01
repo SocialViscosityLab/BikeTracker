@@ -8,11 +8,13 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -33,15 +35,20 @@ import com.wahoofitness.connector.capabilities.RunSpeed;
 import com.wahoofitness.connector.conn.connections.SensorConnection;
 import com.wahoofitness.connector.conn.connections.params.ConnectionParams;
 
+import java.util.Observable;
+import java.util.Observer;
+
+import sensors.Synchro;
 import sensors.WahooConnectorService;
 import sensors.WahooConnectorServiceConnection;
 
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
 public class RecordingActivity extends AppCompatActivity implements LocationListener, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, WahooConnectorService.Listener, WahooConnectorServiceConnection.Listener {
+        GoogleApiClient.OnConnectionFailedListener, WahooConnectorService.Listener, WahooConnectorServiceConnection.Listener, Observer {
 
     private Button trigger_session;
+    private TextView suggestionView;
     private Logic logic;
     private final int LOCATION_PERMISSION_REQUEST_CODE = 1252;
     protected static final int REQUEST_ENABLE_BT = 0;
@@ -65,9 +72,18 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
         // Bluetooth management methods
         //findBluetoothDevice();
 
+        //Ui managment methods
+        initUI();
         //Buttons management methods
         initButton();
 
+        //Set activity as observer
+        logic.getObserver().addObserver(this);
+
+    }
+
+    private void initUI() {
+        this.suggestionView = findViewById(R.id.suggestion_view);
     }
 
     protected void initButton() {
@@ -77,11 +93,18 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
             public void onClick(View v) {
                 if (!logic.isAlive()) {
                     logic.start();
+                    trigger_session.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.highlight));
+
                 }
                 if (logic.isInSession()) {
                     trigger_session.setText("Start Session");
                     Log.d(TAG, "Session finished!");
                     logic.closeSession();
+                    suggestionView.setText("Are you ready?");
+                    suggestionView.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorPrimary));
+                    trigger_session.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.accelerate));
+
+
 
                 } else {
                     trigger_session.setText("Stop Session");
@@ -307,4 +330,23 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
         super.onDestroy();
     }
 
+    @Override
+    public void update(Observable observable, Object o) {
+        Log.d(TAG, "The suggestion is:" + (logic.getSuggestion()));
+        switch (logic.getSuggestion()){
+            case -1:
+                suggestionView.setText("Stop: the leader is " + logic.getGap() + " meters behind you");
+                suggestionView.setBackgroundColor(ContextCompat.getColor(this, R.color.stop));
+                break;
+            case 0:
+                suggestionView.setText("You are doing it perfect");
+                suggestionView.setBackgroundColor(ContextCompat.getColor(this, R.color.perfect));
+                break;
+            case 1:
+                suggestionView.setText("Go: the leader is " + logic.getGap() + " meters away from you");
+                suggestionView.setBackgroundColor(ContextCompat.getColor(this, R.color.accelerate));
+                break;
+        }
+
+    }
 }

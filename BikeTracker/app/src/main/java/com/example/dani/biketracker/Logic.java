@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import Core.Route;
 import Core.Session;
+import sensors.Synchro;
 
 /**
  * Created by Dani on 13/09/18.
@@ -79,7 +80,10 @@ public class Logic extends Thread {
     //-- The ghost variables -- //
     private Ghost ghost;
     private int suggestion;
+    private float gap;
 
+    // -- Observer pattern to change the interface with the suggestion --- //
+    private Synchro observer;
 
     // --- Bluetooth management variables --- //
     //private ComunicationBluetooth comunicationBluetooth;
@@ -98,7 +102,8 @@ public class Logic extends Thread {
         sessionInDatabase = false;
         ghost = new Ghost();
         suggestion = 0;
-
+        gap = 0;
+        observer = new Synchro();
     }
 
 
@@ -159,8 +164,8 @@ public class Logic extends Thread {
 
                     updateCurrentPosition();
 
-                    float gap = route.getAtoBDistance(ghost.getPosition(), myLoc);
-                    Log.w(TAG, "You are at " + gap + " meters away from the ghost.");
+                    gap = route.getAtoBDistance(ghost.getPosition(), myLoc);
+                    Log.d(TAG, "You are at " + gap + " meters away from the ghost.");
 
                     lastSpeed = speed;
                 }
@@ -203,10 +208,9 @@ public class Logic extends Thread {
      */
     private int calculateSuggestion(){
         float gap = route.getAtoBDistance(ghost.getPosition(), myLoc);
-
         float bikeLength = 2;
         float desiredProximity = 4;
-        float errorRange = 0.5f;
+        float errorRange = 1.5f;
 
         if(gap > 0){
             if(gap <= (bikeLength + desiredProximity + errorRange) && gap >= (bikeLength + desiredProximity - errorRange)){
@@ -217,6 +221,9 @@ public class Logic extends Thread {
         }else{
             suggestion=-1;
         }
+
+        observer.updateChange();
+
         return suggestion;
     }
 
@@ -448,10 +455,6 @@ public class Logic extends Thread {
         this.myLoc = myLoc;
     }
 
-    public int getSuggestion(){
-        return suggestion;
-    }
-
     public ArrayList<Session> getSessions() {
         return sessions;
     }
@@ -460,5 +463,13 @@ public class Logic extends Thread {
         return isInSession;
     }
 
+    public Synchro getObserver(){ return observer; }
+
+    public int getSuggestion(){
+        return suggestion;
+    }
+    public float getGap(){
+        return gap;
+    }
     //public void setBluetoothConnection(BluetoothDevice device){ comunicationBluetooth = new ComunicationBluetooth(device); }
 }

@@ -6,16 +6,28 @@
     android:layout_height="match_parent"
     tools:context=".RecordingActivity">
 
+<TextView
+    android:id="@+id/suggestion_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:text="@string/are_you_ready"
+    android:textColor="@color/highlight"
+    android:textSize="14dp"
+    android:gravity="center"
+
+    android:background="@color/colorPrimary"
+    />
 
     <Button
         android:id="@+id/trigger_session"
+        android:layout_alignBottom="@id/suggestion_view"
         android:layout_marginTop="20dp"
-        android:layout_centerVertical="true"
-        android:layout_width="200dp"
-        android:layout_height="50dp"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:textSize="18dp"
         android:layout_centerHorizontal="true"
         android:background="@color/colorPrimary"
         android:text="@string/start_session"
-        android:textColor="@color/highlight"/>
+        android:textColor="@color/accelerate"/>
 
 </RelativeLayout>
