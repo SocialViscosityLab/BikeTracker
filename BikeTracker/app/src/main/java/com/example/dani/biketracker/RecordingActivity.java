@@ -1,8 +1,6 @@
 package com.example.dani.biketracker;
 
 import android.Manifest;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -15,6 +13,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -34,24 +33,20 @@ import com.wahoofitness.connector.capabilities.RunSpeed;
 import com.wahoofitness.connector.conn.connections.SensorConnection;
 import com.wahoofitness.connector.conn.connections.params.ConnectionParams;
 
-import java.util.Set;
+import sensors.WahooConnectorService;
+import sensors.WahooConnectorServiceConnection;
 
-import static android.provider.Settings.Global.DEVICE_NAME;
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
 public class RecordingActivity extends AppCompatActivity implements LocationListener, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, WahooConnectorService.Listener, WahooConnectorServiceConnection.Listener {
+
     private Button trigger_session;
     private Logic logic;
-
-    private LocationRequest mLocationRequest;
-    private long UPDATE_INTERVAL = 2000;
-    private long FASTEST_INTERVAL = 1000;
     private final int LOCATION_PERMISSION_REQUEST_CODE = 1252;
+    protected static final int REQUEST_ENABLE_BT = 0;
 
     private static String TAG = "DEBUGGING";
-
-    protected static final int REQUEST_ENABLE_BT = 0;
 
 
     @Override
@@ -136,9 +131,11 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
     protected void startLocationUpdates() {
 
         // Create the location request to start receiving updates
-        mLocationRequest = new LocationRequest();
+        LocationRequest mLocationRequest = new LocationRequest();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        long UPDATE_INTERVAL = 2000;
         mLocationRequest.setInterval(UPDATE_INTERVAL);
+        long FASTEST_INTERVAL = 1000;
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
 
         // Create LocationSettingsRequest object using location request
@@ -179,20 +176,13 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
 
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                // start to find location...
-
-            } else { // if permission is not granted
-
-                // decide what you want to do if you don't get permissions
+            } else {
+                int duration = Toast.LENGTH_SHORT;
+                Toast toast = Toast.makeText(this, "We need your location for the app to work", duration);
+                toast.show();
             }
         }
     }
-
-
-    /*TODO:
-    private RunSpeed getRunSpeedCap() {
-        return (RunSpeed) getCapability(Capability.CapabilityType.RunSpeed);
-    }*/
 
     private final RunSpeed.Listener mRunSpeedListener = new RunSpeed.Listener() {
         private RunSpeed.Data mLastCallbackData;
@@ -315,11 +305,6 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
     @Override
     public void onDestroy() {
         super.onDestroy();
-/*TODO:
-        RunSpeed runSpeed = getRunSpeedCap();
-        if (runSpeed != null) {
-            runSpeed.removeListener(mRunSpeedListener);
-        }*/
     }
 
 }

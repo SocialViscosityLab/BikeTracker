@@ -1,4 +1,4 @@
-package com.example.dani.biketracker;
+package sensors;
 
 import java.util.ArrayList;
 import java.util.Collection;

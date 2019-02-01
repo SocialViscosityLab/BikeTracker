@@ -1,4 +1,4 @@
-package com.example.dani.biketracker;
+package sensors;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,8 +23,6 @@ import com.wahoofitness.connector.capabilities.Capability.CapabilityType;
 import com.wahoofitness.connector.conn.connections.SensorConnection;
 import com.wahoofitness.connector.conn.connections.params.ConnectionParams;
 import com.wahoofitness.connector.listeners.discovery.DiscoveryListener;
-
-import java.util.Set;
 
 public class WahooConnectorService extends Service {
     private static String TAG = "DEBUGGING";

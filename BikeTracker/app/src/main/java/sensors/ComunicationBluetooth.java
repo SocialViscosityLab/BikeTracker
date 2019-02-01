@@ -1,4 +1,4 @@
-package com.example.dani.biketracker;
+package sensors;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;

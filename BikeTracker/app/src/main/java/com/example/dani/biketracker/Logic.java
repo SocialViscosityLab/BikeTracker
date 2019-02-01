@@ -1,19 +1,14 @@
 package com.example.dani.biketracker;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothDevice;
 import android.location.Location;
-import android.location.LocationManager;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.TaskCompletionSource;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.annotations.Nullable;
-import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -22,31 +17,30 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
-
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Map;
+import java.util.Objects;
+import Core.Route;
+import Core.Session;
 
 /**
  * Created by Dani on 13/09/18.
  */
 
-public class Logic extends Thread{
+public class Logic extends Thread {
     //Reference of my logic
-    private static Logic ref=null;
+    private static Logic ref = null;
     //Debugging string
     private static String TAG = "DEBUGGING";
-
 
 
     // --- Database management variables --- //
 
     //Reference to the firestore database
     private FirebaseFirestore db;
-    //Firebase user
-    private FirebaseUser user;
     // Boolean that confirms the creation of the session in the database
     private Boolean sessionInDatabase;
 
@@ -54,7 +48,7 @@ public class Logic extends Thread{
     // --- Session management variables --- //
 
     //Session arraylist
-    private ArrayList<Session>sessions;
+    private ArrayList<Session> sessions;
     //Ref of the current session
     private Session currentSession;
     //Boolean to know if is currently creating data for a session
@@ -65,6 +59,8 @@ public class Logic extends Thread{
     private String id_user;
     //Current journey ID
     private String id_journey;
+    //Reference route of the journey
+    private Route route;
     //Current session ID
     private String id_session;
     //Current session time in millis
@@ -73,12 +69,8 @@ public class Logic extends Thread{
 
     // --- Location management variables --- //
 
-    //Location manager
-    private LocationManager lm;
     // My current location
     private Location myLoc;
-    // Last locations: To temporary calculate the speed
-    private Location lastLoc;
     // Last Speed to calculate the acceleration
     private float lastSpeed;
     //CurrentAcceleration
@@ -86,27 +78,26 @@ public class Logic extends Thread{
 
     //-- The ghost variables -- //
     private Ghost ghost;
+    private int suggestion;
 
 
     // --- Bluetooth management variables --- //
-    private ComunicationBluetooth comunicationBluetooth;
+    //private ComunicationBluetooth comunicationBluetooth;
 
 
     /**
      * Logic constructor that
      * initialize the session's array
-     *
      */
-    private Logic(){
+    private Logic() {
         myLoc = new Location(" ");
         //Set the value to run thread
-        isRunning =  true;
-        //Initialize the sessions arraylist
-        sessions = new ArrayList<Session>();
-
+        isRunning = true;
+        //Initialize the sessions array list
+        sessions = new ArrayList<>();
         sessionInDatabase = false;
-
         ghost = new Ghost();
+        suggestion = 0;
 
     }
 
@@ -117,33 +108,10 @@ public class Logic extends Thread{
      *
      * @return Current instance of the Logic object.
      */
-    public static Logic getInstance(){
-        if(ref == null) ref = new Logic();
+    public static Logic getInstance() {
+        if (ref == null) ref = new Logic();
         return ref;
     }
-
-
-    /**
-     * Ask for the current system time and format it as YYYY/MM/dd - HH:mm:ss.
-     * This time will be replaced by the server for the server time.
-     *
-     * @return Current time with the format YYYY/MM/dd - HH:mm:ss as a string.
-     */
-    private String getStartTime(){
-        @SuppressLint("SimpleDateFormat") DateFormat formatter = new SimpleDateFormat("YYYY/MM/dd - HH:mm:ss");
-        return  String.valueOf(formatter.format(currentDateAndTime().getTime()));
-    }
-
-
-    /**
-     * Ask for an instance of the system's calendar.
-     *
-     * @return Current date in form of a time manager object.
-     */
-    private Calendar currentDateAndTime(){
-        return Calendar.getInstance();
-    }
-
 
     /**
      * Creates a new session in the arrayList of sessions,
@@ -151,52 +119,49 @@ public class Logic extends Thread{
      * get the last location as the first location, of the session and set to
      * true the isInSession boolean.
      */
-    public void startNewSession(){
+    public void startNewSession() {
         sessions.add(new Session(id_session, id_user, getStartTime()));
-        currentSession = sessions.get(sessions.size()-1);
+        currentSession = sessions.get(sessions.size() - 1);
         session_time = currentDateAndTime().getTimeInMillis();
         findJourney();
-        lastLoc = myLoc;
-        isInSession = true;
         acceleration = 0;
-        followGhost();
-
     }
-
 
     /**
      * Set to false the isInSession boolean and call the method
      * to update the current session in the data base.
      */
-    public void closeSession(){
+    public void closeSession() {
         isInSession = false;
         updateSessionInDataBase();
     }
-
 
     /**
      * Manage the thread to create a data point
      * every second since the current session started until
      * it finishes.
-     * TODO: get the speed and the acceleration from a sensor and not this calculation
+     * TODO: define if the session should automatically stop if the ghost the last route point and is not looped
      */
-    public void run(){
-        while (isRunning){
+    public void run() {
+        while (isRunning) {
 
             try {
-                if(isInSession){
+                if (isInSession) {
                     //add new data_points to the last session created every second
-                    long current_session_time = currentDateAndTime().getTimeInMillis()-session_time;
+                    long current_session_time = currentDateAndTime().getTimeInMillis() - session_time;
 
-                    //Temporal Speed calculation
-                    float speed = myLoc.distanceTo(lastLoc);
+                    float speed = myLoc.getSpeed();
 
                     //Acceleration calculation
                     acceleration = speed - lastSpeed;
 
-                    currentSession.addNewDataPoint(current_session_time,myLoc.getLongitude(),myLoc.getLatitude(), ghost.suggest(myLoc), speed, acceleration);
+                    currentSession.addNewDataPoint(current_session_time, myLoc.getLongitude(), myLoc.getLatitude(), calculateSuggestion(), speed, acceleration);
+
                     updateCurrentPosition();
-                    lastLoc = myLoc;
+
+                    float gap = route.getAtoBDistance(ghost.getPosition(), myLoc);
+                    Log.w(TAG, "You are at " + gap + " meters away from the ghost.");
+
                     lastSpeed = speed;
                 }
 
@@ -208,22 +173,72 @@ public class Logic extends Thread{
     }
 
 
+    /* ---------- Methods to process and get information -----------------*/
+
+
     /**
-     * Set the session's user id from the firebase's user
-     * that previously logged in
-     * @param user
+     * Ask for the current system time and format it as YYYY/MM/dd - HH:mm:ss.
+     * This time will be replaced by the server for the server time.
+     *
+     * @return Current time with the format YYYY/MM/dd - HH:mm:ss as a string.
      */
-    public void setUser(FirebaseUser user){
-        this.user = user;
-        id_user = user.getUid();
+    private String getStartTime() {
+        @SuppressLint("SimpleDateFormat") DateFormat formatter = new SimpleDateFormat("YYYY/MM/dd - HH:mm:ss");
+        return String.valueOf(formatter.format(currentDateAndTime().getTime()));
     }
 
 
     /**
+     * Ask for an instance of the system's calendar.
+     *
+     * @return Current date in form of a time manager object.
+     */
+    private Calendar currentDateAndTime() {
+        return Calendar.getInstance();
+    }
+
+    /**
+     * Method to calculate the suggestion given the distance
+     * between the ghost and the user in the route
+     */
+    private int calculateSuggestion(){
+        float gap = route.getAtoBDistance(ghost.getPosition(), myLoc);
+
+        float bikeLength = 2;
+        float desiredProximity = 4;
+        float errorRange = 0.5f;
+
+        if(gap > 0){
+            if(gap <= (bikeLength + desiredProximity + errorRange) && gap >= (bikeLength + desiredProximity - errorRange)){
+                suggestion=0;
+            }else{
+                suggestion = 1;
+            }
+        }else{
+            suggestion=-1;
+        }
+        return suggestion;
+    }
+
+
+
+    /* ---------- DataBase set up methods -----------------*/
+
+
+    /**
+     * Set the session's user id from the firebase's user
+     * that previously logged in
+     *
+     * @param user User that was logged in the fireBase interface
+     */
+    public void setUser(FirebaseUser user) {
+        id_user = user.getUid();
+    }
+
+    /**
      * Set the session's user id from the firebase's user
      * that previously logged in
      */
-    //Method to connect with the database
     public void firestoreSetup() {
         db = FirebaseFirestore.getInstance();
 
@@ -233,27 +248,38 @@ public class Logic extends Thread{
         db.setFirestoreSettings(settings);
     }
 
+
+    /* ---------- Methods to consult the DataBase -----------------*/
+
     /**
      * Method that set the journey's id by reading all
      * the current journeys in the database and identifying
      * last one
      * TODO: It might be useful to find the active journey with a attribute
      */
-    public void findJourney(){
+    private void findJourney() {
         db.collection("journeys")
                 .get()
                 .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @SuppressLint("DefaultLocale")
                     @Override
                     public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
                             int tempId = 0;
-                            for (QueryDocumentSnapshot document : task.getResult()) {
+
+                            //Journey's reference route
+                            DocumentReference refRoute = null;
+
+                            for (QueryDocumentSnapshot document : Objects.requireNonNull(task.getResult())) {
                                 int id = Integer.parseInt(document.getId());
-                                if(id > tempId){
+                                if (id > tempId) {
                                     tempId = id;
+                                    refRoute = (DocumentReference) document.getData().get("reference_route");
                                 }
                             }
                             id_journey = String.format("%05d", tempId);
+
+                            getReferenceRoute(Objects.requireNonNull(refRoute));
                             getSessionId();
                         } else {
                             Log.w(TAG, "Error getting documents.", task.getException());
@@ -262,17 +288,67 @@ public class Logic extends Thread{
                 });
     }
 
+    /**
+     * Method that create the object Route with the boolean of the loop state
+     */
+    private void getReferenceRoute(final DocumentReference refRoute) {
+        refRoute.get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot documentSnapshot) {
+                boolean loop = (boolean) Objects.requireNonNull(documentSnapshot.getData()).get("loop");
+                route = new Route(loop);
+                getReferenceRoutePoints(refRoute);
+            }
+        });
+    }
+
+    /**
+     * Method to set the data points
+     * of the reference route from the journey
+     *
+     * @param refRoute fireStore reference object to get the reference route details
+     */
+
+    private void getReferenceRoutePoints(DocumentReference refRoute) {
+        refRoute.collection("position_points")
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            Location positionPoints[] = new Location[Objects.requireNonNull(task.getResult()).size()];
+
+                            int index = 0;
+
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Location tempL = new Location("");
+
+                                tempL.setLatitude((double) document.getData().get("latitude"));
+                                tempL.setLongitude((double) document.getData().get("longitude"));
+                                positionPoints[index] = tempL;
+                                index++;
+                            }
+                            route.setRoutePoints(positionPoints);
+                            followGhost();
+                            isInSession = true;
+
+                        } else {
+                            Log.w(TAG, "Error getting documents.", task.getException());
+                        }
+                    }
+                });
+    }
 
     /**
      * Method that set the session's id by reading all
      * the current sessions in the database, identifying
      * last one and finding the next consecutive numerical id
-     * TODO: This method should be called just before writing the session to avoid overlapping
      */
-    public void getSessionId(){
+    private void getSessionId() {
         db.collection("journeys").document(id_journey).collection("sessions")
                 .get()
                 .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @SuppressLint("DefaultLocale")
                     @Override
                     public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
@@ -286,55 +362,12 @@ public class Logic extends Thread{
     }
 
     /**
-     * Create the basic information of the new session
-     */
-    public void setNewSession(){
-        db.collection("journeys").document(id_journey).collection("sessions").document(id_session).set(currentSession.getSessionDoc());
-        sessionInDatabase = true;
-    }
-
-    /**
-     * Create the basic information of the new session
-     */
-    public void updateCurrentPosition(){
-        if(sessionInDatabase) {
-            db.collection("journeys").document(id_journey).collection("sessions").document(id_session).update(currentSession.getCurrentPosition());
-        }
-    }
-
-    /**
-     * Add a new document with the information of the session
-     * with a numeric id consecutive to the
-     * last id founded in the sessions of the last founded
-     * journey.
-     */
-    public void updateSessionInDataBase(){
-
-        db.collection("journeys").document(id_journey).collection("sessions").document(id_session).update(currentSession.getDataPointsDocument());
-
-                /*
-                addOnSuccessListener(new OnSuccessListener<DocumentChange>() {
-
-                    @Override
-                    public void onSuccess(DocumentReference documentReference) {
-                        Log.d(TAG, "DocumentSnapshot added with ID: " + documentReference.getId());
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w(TAG, "Error adding document", e);
-                    }
-                });
-*/
-    }
-
-    /**
-     * Check the current position on the firestore database
+     * Check the current position on the fireStore database
      * every second to process the needed suggestion.
      */
-    public void followGhost(){
-        final DocumentReference docRef = db.collection("journeys").document("0").collection("sessions").document("00000");
+    private void followGhost() {
+        Log.w(TAG, "Start following the ghost");
+        final DocumentReference docRef = db.collection("journeys").document(id_journey).collection("sessions").document("00000");
         docRef.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot snapshot,
@@ -347,27 +380,26 @@ public class Logic extends Thread{
                 if (snapshot != null && snapshot.exists()) {
                     Map<String, Object> ghostPositionDoc = (Map<String, Object>) snapshot.getData().get("current_ghost_position");
 
-                    if(ghostPositionDoc != null) {
-                        //Log.d(TAG, "Ghost: time = " + ghostPositionDoc.get("time"));
+                    if (ghostPositionDoc != null) {
                         Location tempL = new Location("");
                         tempL.setLatitude((double) ghostPositionDoc.get("latitude"));
-                        tempL.setLongitude((double)ghostPositionDoc.get("longitude"));
+                        tempL.setLongitude((double) ghostPositionDoc.get("longitude"));
                         Double speed = 0d;
                         Double acceleration = 0d;
 
-                        if(ghostPositionDoc.get("speed") instanceof Long){
+                        if (ghostPositionDoc.get("speed") instanceof Long) {
                             Long tempS = (Long) ghostPositionDoc.get("speed");
                             speed = tempS.doubleValue();
-                        }else{
+                        } else {
                             speed = (Double) ghostPositionDoc.get("speed");
 
                         }
-                        if(ghostPositionDoc.get("acceleration") instanceof Long){
+                        if (ghostPositionDoc.get("acceleration") instanceof Long) {
                             Long tempA = (Long) ghostPositionDoc.get("acceleration");
                             acceleration = tempA.doubleValue();
 
-                        }else {
-                            acceleration= (Double) ghostPositionDoc.get("acceleration");
+                        } else {
+                            acceleration = (Double) ghostPositionDoc.get("acceleration");
                         }
 
                         ghost.updateGhost(tempL, speed, acceleration);
@@ -380,13 +412,53 @@ public class Logic extends Thread{
             }
         });
     }
-    public void setMyLoc(Location myLoc){ this.myLoc=myLoc; }
 
-    public void setLocationManager(LocationManager lm){ this.lm = lm; }
 
-    public ArrayList<Session> getSessions() { return sessions; }
+    /* ---------- Methods to write in the data base -----------------*/
 
-    public boolean isInSession() { return isInSession; }
 
-    public void setBluetoothConnection(BluetoothDevice device){ comunicationBluetooth = new ComunicationBluetooth(device); }
+    /**
+     * Create the basic information of the new session
+     */
+    private void setNewSession() {
+        db.collection("journeys").document(id_journey).collection("sessions").document(id_session).set(currentSession.getSessionDoc());
+        sessionInDatabase = true;
+    }
+
+    /**
+     * Create the basic information of the new session
+     */
+    private void updateCurrentPosition() {
+        if (sessionInDatabase) {
+            db.collection("journeys").document(id_journey).collection("sessions").document(id_session).update(currentSession.getCurrentPosition());
+        }
+    }
+
+    /**
+     * Add a new document with the information of the session
+     * with a numeric id consecutive to the
+     * last id founded in the sessions of the last founded
+     * journey.
+     */
+    private void updateSessionInDataBase() {
+        db.collection("journeys").document(id_journey).collection("sessions").document(id_session).update(currentSession.getDataPointsDocument());
+    }
+
+    public void setMyLoc(Location myLoc) {
+        this.myLoc = myLoc;
+    }
+
+    public int getSuggestion(){
+        return suggestion;
+    }
+
+    public ArrayList<Session> getSessions() {
+        return sessions;
+    }
+
+    public boolean isInSession() {
+        return isInSession;
+    }
+
+    //public void setBluetoothConnection(BluetoothDevice device){ comunicationBluetooth = new ComunicationBluetooth(device); }
 }
