@@ -49,7 +49,6 @@ public class WahooConnectorService extends Service {
 
         void onSensorConnectionStateChanged(SensorConnection sensorConnection,
                                             SensorConnectionState state);
-
     }
 
     static {
@@ -182,6 +181,7 @@ public class WahooConnectorService extends Service {
             if (enable) {
                 mHardwareConnector.startDiscovery(SensorType.NONE, NetworkType.UNSPECIFIED,
                         mDiscoveryListener);
+
             } else {
                 mHardwareConnector.stopDiscovery(NetworkType.UNSPECIFIED);
             }
@@ -192,9 +192,11 @@ public class WahooConnectorService extends Service {
     }
 
     public Collection<ConnectionParams> getDiscoveredConnectionParams() {
+        Log.d(TAG, "discovering,,,");
         if (mHardwareConnector != null) {
             return mHardwareConnector.getDiscoveredConnectionParams(NetworkType.UNSPECIFIED,
                     SensorType.NONE);
+
         } else {
             return new ArrayList<ConnectionParams>();
         }
@@ -242,6 +244,7 @@ public class WahooConnectorService extends Service {
         super.onCreate();
 
         mHardwareConnector = new HardwareConnector(c, mHardwareConnectorCallback);
+
     }
 
     @Override

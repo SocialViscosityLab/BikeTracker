@@ -93,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
             String uid = user.getUid();
         }
         else {
-            signIn("d4svlab1@gmail.com", "viscosity");
+            signIn("d4svlab2@gmail.com", "viscosity");
         }
     }
 

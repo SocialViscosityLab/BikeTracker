@@ -2,6 +2,7 @@ package com.example.dani.biketracker;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Looper;
@@ -35,8 +36,10 @@ import com.wahoofitness.connector.capabilities.RunSpeed;
 import com.wahoofitness.connector.conn.connections.SensorConnection;
 import com.wahoofitness.connector.conn.connections.params.ConnectionParams;
 
+import java.util.HashSet;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.Set;
 
 import sensors.Synchro;
 import sensors.WahooConnectorService;
@@ -52,6 +55,13 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
     private Logic logic;
     private final int LOCATION_PERMISSION_REQUEST_CODE = 1252;
     protected static final int REQUEST_ENABLE_BT = 0;
+
+    private ConnectionParams mConnectionParams;
+    private WahooConnectorServiceConnection mHardwareConnectorServiceConnection;
+    private SharedPreferences sharedPreferences;
+    private ConnectionParams params;
+    private final Set<ConnectionParams> mSavedConnectionParams = new HashSet<ConnectionParams>();
+
 
     private static String TAG = "DEBUGGING";
 
@@ -80,7 +90,23 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
         //Set activity as observer
         logic.getObserver().addObserver(this);
 
+        /*
+        mSavedConnectionParams.clear();
+
+        sharedPreferences = this.getSharedPreferences("PersistentConnectionParams", 0);
+
+        for (Object entry : sharedPreferences.getAll().values()) {
+            Log.d(TAG, "algo ahi?");
+
+            ConnectionParams params = ConnectionParams.fromString((String) entry);
+            mSavedConnectionParams.add(params);
+        }
+*/
+        //mConnectionParams = ConnectionParams.fromString(mSavedConnectionParams);
+        mHardwareConnectorServiceConnection = new WahooConnectorServiceConnection(this, this);
+
     }
+
 
     private void initUI() {
         this.suggestionView = findViewById(R.id.suggestion_view);
@@ -213,7 +239,8 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
         @Override
         public void onRunSpeedData(RunSpeed.Data data) {
             mLastCallbackData = data;
-            // TODO: REACT
+            Log.d(TAG, "receiving speed data");
+
         }
 
         @Override
@@ -223,6 +250,7 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
         }
     };
 
+/*
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         // Check which request we're responding to
         if (requestCode == REQUEST_ENABLE_BT) {
@@ -232,7 +260,7 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
             }
         }
     }
-/*
+
     private void findBluetoothDevice() {
         BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter == null) {
@@ -265,9 +293,35 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
     }
 */
 
+    public void saveConnectionParams() {
 
+        SharedPreferences sharedPreferences = this.getSharedPreferences(
+                "PersistentConnectionParams", 0);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.clear();
+        int count = 0;
+        for (ConnectionParams params : mSavedConnectionParams) {
+            editor.putString("" + count++, params.serialize());
+        }
+        editor.commit();
+    }
+
+    /*
+    public SensorConnection getSensorConnection() {
+        if (mConnectionParams == null) {
+            //throw new AssertionError("getSensorConnection is null");
+        }
+
+        if (mHardwareConnectorServiceConnection != null) {
+            return mHardwareConnectorServiceConnection.getSensorConnection(mConnectionParams);
+        } else {
+            return null;
+        }
+    }
+*/
     @Override
     public void onConnected(@Nullable Bundle bundle) {
+        Log.d(TAG, "Algo se conecto");
 
     }
 
@@ -278,11 +332,13 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Log.d(TAG, "Connection failed");
 
     }
 
     @Override
     public void onDeviceDiscovered(ConnectionParams params) {
+        Log.d(TAG, "Device discovered");
 
     }
 
@@ -303,23 +359,30 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
 
     @Override
     public void onNewCapabilityDetected(SensorConnection sensorConnection, Capability.CapabilityType capabilityType) {
-
+        Log.d(TAG, "New capability detected");
     }
 
     @Override
     public void onSensorConnectionStateChanged(SensorConnection sensorConnection, HardwareConnectorEnums.SensorConnectionState state) {
+        Log.d(TAG, "Connection state changed");
 
     }
 
+    public void startSensors(WahooConnectorService hardwareConnectorService){
+        if(!hardwareConnectorService.isDiscovering()){
+            hardwareConnectorService.onCreate(this);
+            hardwareConnectorService.addListener(this);
+            hardwareConnectorService.enableDiscovery(true);
+            Log.d(TAG, "ahora si esta descubriendo? "+hardwareConnectorService.isDiscovering());
+
+        }
+    }
     @Override
     public void onHardwareConnectorServiceConnected(WahooConnectorService hardwareConnectorService) {
+        startSensors(hardwareConnectorService);
+        Log.d(TAG, "Hardware Connected");
+        }
 
-        hardwareConnectorService.addListener(RecordingActivity.this);
-        RecordingActivity.this
-                .onHardwareConnectorServiceConnected(hardwareConnectorService);
-         //getRunSpeedCap().addListener(mRunSpeedListener);
-
-    }
     @Override
     public void onHardwareConnectorServiceDisconnected() {
 

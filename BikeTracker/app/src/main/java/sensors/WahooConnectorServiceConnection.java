@@ -35,10 +35,10 @@ public class WahooConnectorServiceConnection {
         @Override
         public void onServiceConnected(ComponentName className, IBinder binder) {
             WahooConnectorService.WahooConnectorServiceBinder hardwareConnectorServiceBinder = (WahooConnectorService.WahooConnectorServiceBinder) binder;
-            WahooConnectorService hardwareConnectorService = hardwareConnectorServiceBinder
-                    .getService();
+            WahooConnectorService hardwareConnectorService = hardwareConnectorServiceBinder.getService();
             mHardwareConnectorService = hardwareConnectorService;
             mListener.onHardwareConnectorServiceConnected(mHardwareConnectorService);
+
             Log.d(TAG, "WCSC on service connected");
 
         }

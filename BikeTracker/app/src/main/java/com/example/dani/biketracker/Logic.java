@@ -166,6 +166,7 @@ public class Logic extends Thread {
 
                     gap = route.getAtoBDistance(ghost.getPosition(), myLoc);
                     Log.d(TAG, "You are at " + gap + " meters away from the ghost.");
+                    //Log.d(TAG, "You are at  latitude:" + myLoc.getLatitude() + " / longitude: "+myLoc.getLongitude());
 
                     lastSpeed = speed;
                 }
