@@ -8,6 +8,7 @@ import java.util.Set;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.net.nsd.NsdManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
