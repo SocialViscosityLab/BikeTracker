@@ -36,7 +36,6 @@ public class Segment {
 
         if (fraction <= 1){
             return GeometryUtils.getIntermediatePoint(start, end, fraction);
-
         } else {
             Log.d(TAG, "The distance given "+ distance + " is larger than this segment " + this.length + ". Undefined returned");
             return null;

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BikeTracker</string>
+    <string name="app_name"><b>BikeTracker</b></string>
     <string name="title_activity_login">Sign in</string>
 
     <!-- Strings related to login -->

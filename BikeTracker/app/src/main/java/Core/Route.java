@@ -20,6 +20,18 @@ public class Route {
     private Segment segments[];
     /** loop means that the route is a loop and the last corner-point connects with the first corner-point*/
     private boolean loop;
+    /** Reference of current position*/
+    private Location loc;
+    /** Reference of the current segment */
+    private Segment currentSegment;
+    /** Reference to the Ghost's segement */
+    private Segment ghostSegment;
+
+    /** Reference to the closest position on route */
+    private Location projectionOnRoute;
+    /** Distance to the closest position on route */
+    private float distanceToRoutePath;
+
 
     private static String TAG = "DEBUGGING";
 
@@ -109,6 +121,15 @@ public class Route {
      positive when A is in front of B, else the distance is negative.
      */
     public float getAtoBDistance(Location positionA, Location positionB){
+        loc = positionB;
+        int indexA = (int) getIndexAndProximityToClosestSegmentTo(positionA).get("index");
+        ghostSegment = segments[indexA];
+        //int indexAndProxB = (int) getIndexAndProximityToClosestSegmentTo(positionB).get("index");
+        Map<String, Object> indexAndProxB = getIndexAndProximityToClosestSegmentTo(positionB);
+        currentSegment = segments[(int)indexAndProxB.get("index")];
+        distanceToRoutePath = (float)indexAndProxB.get("proximity");
+        projectionOnRoute = (Location)indexAndProxB.get("projection");
+
         float distanceToA = getTraveledDistanceToPosition(positionA);
         float distanceToB = getTraveledDistanceToPosition(positionB);
 
@@ -147,14 +168,14 @@ public class Route {
 
             // get all segments
             // store the distance to the first segment
-            float currentD = GeometryUtils.distToSegment(position,this.segments[0].getStart(),this.segments[0].getEnd());
-
+            float currentD = (float) GeometryUtils.distToSegment(position,this.segments[0].getStart(),this.segments[0].getEnd()).get("distance");
+            Location projection = (Location) GeometryUtils.distToSegment(position,this.segments[0].getStart(),this.segments[0].getEnd()).get("location");
             // set return value
             int index = 0;
             // Go over all other the segments
             for (int i = 1; i < segments.length; i++) {
                 // Calculate the distance to each one of them
-                float nextD = GeometryUtils.distToSegment(position,this.segments[i].getStart(),this.segments[i].getEnd());
+                float nextD = (float) GeometryUtils.distToSegment(position,this.segments[i].getStart(),this.segments[i].getEnd()).get("distance");
 
                 // Store the segment position of the shortest distances
                 if (currentD > nextD){
@@ -162,8 +183,10 @@ public class Route {
                     index = i;
                 }
             }
+
          indexAndProximity.put("index", index);
          indexAndProximity.put("proximity", currentD);
+         indexAndProximity.put("projection", projection);
 
          // Return the id of the closest segment
          return indexAndProximity;
@@ -244,6 +267,14 @@ public class Route {
     public Segment getLastSegment(){
         return segments[segments.length-1];
     }
+    public Segment getCurrentSegment() { return currentSegment; }
+    public Map<String, Object> getProjection(){
+        Map<String, Object> projection = new HashMap<>();
+        projection.put("distance",distanceToRoutePath);
+        projection.put("projected_loc", projectionOnRoute);
+        return projection;
+    }
+    public Segment getGhostSegment() { return ghostSegment; }
 
     public boolean isLooped(){
      return loop;

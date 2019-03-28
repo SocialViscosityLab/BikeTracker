@@ -2,6 +2,9 @@ package utils;
 
 import android.location.Location;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  Abstract utility class with Geometry methods
  */
@@ -55,7 +58,8 @@ public class GeometryUtils {
         }
     }
 
-    public static float distToSegment(Location position, Location start, Location end) {
+    public static  Map<String, Object> distToSegment(Location position, Location start, Location end) {
+        Map<String, Object> projection = new HashMap<>();
         // let's call our point p0 and the points that define the line as p1 and p2.
         double x = position.getLongitude();
         double y = position.getLatitude();
@@ -94,11 +98,14 @@ public class GeometryUtils {
         double dx = x - xx;
         double dy = y - yy;
 
-        Location projection = new Location("");
-        projection.setLongitude(xx);
-        projection.setLatitude(yy);
+        Location projection_loc = new Location("");
+        projection_loc.setLongitude(xx);
+        projection_loc.setLatitude(yy);
+
+        projection.put("location", projection_loc);
+        projection.put("distance", position.distanceTo(projection_loc));
 
         //and finally we return the length that vector
-        return position.distanceTo(projection);
+        return projection;
     }
 }

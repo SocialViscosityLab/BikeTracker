@@ -3,6 +3,12 @@ package com.example.dani.biketracker;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
+import android.hardware.GeomagneticField;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.os.Looper;
 import android.support.annotation.NonNull;
@@ -13,7 +19,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,13 +54,18 @@ import sensors.WahooConnectorServiceConnection;
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
 public class RecordingActivity extends AppCompatActivity implements LocationListener, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, WahooConnectorService.Listener, WahooConnectorServiceConnection.Listener, Observer {
+        GoogleApiClient.OnConnectionFailedListener, WahooConnectorService.Listener, WahooConnectorServiceConnection.Listener, Observer, SensorEventListener {
 
     private Button trigger_session;
-    private TextView suggestionView;
+    private TextView suggestionView, header, state;
     private Logic logic;
     private final int LOCATION_PERMISSION_REQUEST_CODE = 1252;
     protected static final int REQUEST_ENABLE_BT = 0;
+
+    //For the compass
+    private ImageView compass;
+    private float currentDegree = 0f;
+    private SensorManager mSensorManager;
 
     private static String TAG = "DEBUGGING";
 
@@ -77,13 +91,25 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
         //Buttons management methods
         initButton();
 
+        //For the compass
+        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
         //Set activity as observer
         logic.getObserver().addObserver(this);
 
     }
 
+    protected void onResume(){
+        super.onResume();
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION), SensorManager.SENSOR_DELAY_GAME);
+
+    }
+
     private void initUI() {
         this.suggestionView = findViewById(R.id.suggestion_view);
+        this.compass = findViewById(R.id.compass);
+        this.header = findViewById(R.id.header);
+        this.state = findViewById(R.id.state);
     }
 
     protected void initButton() {
@@ -93,23 +119,27 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
             public void onClick(View v) {
                 if (!logic.isAlive()) {
                     logic.start();
-                    trigger_session.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.highlight));
+                    //trigger_session.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.highlight));
 
-                }
-                if (logic.isInSession()) {
-                    trigger_session.setText("Start Session");
-                    Log.d(TAG, "Session finished!");
-                    logic.closeSession();
-                    suggestionView.setText("Are you ready?");
-                    suggestionView.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.colorPrimary));
-                    trigger_session.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.accelerate));
+                }else{
+                    if (logic.isInSession()) {
+                        trigger_session.setText("Start Session");
+                        Log.d(TAG, "Session finished!");
+                        logic.closeSession();
+                        suggestionView.setText("Are you ready?");
+                        trigger_session.setBackground(ContextCompat.getDrawable(getApplicationContext(), R.drawable.start_button));
+                        trigger_session.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.highlight));
+                        compass.setImageDrawable(ContextCompat.getDrawable(getApplicationContext() ,R.drawable.inicial_compass));
+                        header.setText(getResources().getString(R.string.app_name));
+                        state.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.transparent));
+                        state.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.transparent));
 
-
-
-                } else {
-                    trigger_session.setText("Stop Session");
-                    logic.startNewSession();
-                    //logic.getFDB();
+                    } else {
+                        trigger_session.setText("Stop Session");
+                        trigger_session.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.colorSecondary));
+                        trigger_session.setBackground(ContextCompat.getDrawable(getApplicationContext(), R.drawable.finish_button));
+                        logic.startNewSession();
+                    }
                 }
             }
         });
@@ -332,21 +362,94 @@ public class RecordingActivity extends AppCompatActivity implements LocationList
 
     @Override
     public void update(Observable observable, Object o) {
-        Log.d(TAG, "The suggestion is:" + (logic.getSuggestion()));
-        switch (logic.getSuggestion()){
-            case -1:
-                suggestionView.setText("Stop: the leader is " + logic.getGap() + " meters behind you");
-                suggestionView.setBackgroundColor(ContextCompat.getColor(this, R.color.stop));
-                break;
-            case 0:
-                suggestionView.setText("You are doing it perfect");
-                suggestionView.setBackgroundColor(ContextCompat.getColor(this, R.color.perfect));
-                break;
-            case 1:
-                suggestionView.setText("Go: the leader is " + logic.getGap() + " meters away from you");
-                suggestionView.setBackgroundColor(ContextCompat.getColor(this, R.color.accelerate));
-                break;
+        //Log.d(TAG, "The suggestion is:" + (logic.getSuggestion()));
+        header.setText(logic.getRouteName());
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (logic.isOnRoute()) {
+                    state.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.on_text));
+                    state.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.on_background));
+                    state.setText("On Route");
+
+                    switch (logic.getSuggestion()) {
+                        case -1:
+                            //suggestionView.setText("Stop: the leader is " + logic.getGap() + " meters behind you");
+                            if (logic.getMyLoc().getSpeed() < 1) {
+                                suggestionView.setText("Hold on!");
+                                compass.setImageResource(R.drawable.hold_on_compass);
+                            } else {
+                                suggestionView.setText("Slow down!");
+                                compass.setImageResource(R.drawable.slow_down_compass);
+                            }
+                            break;
+
+                        case 0:
+                            suggestionView.setText("You are in the group!");
+                            compass.setImageResource(R.drawable.perfect_compass);
+                            break;
+
+                        case 1:
+                            suggestionView.setText("Speed up!");
+                            compass.setImageResource(R.drawable.speed_up_compass);
+                            break;
+                    }
+                }else{
+                    suggestionView.setText("Join route");
+                    compass.setImageResource(R.drawable.off_route_compass);
+                    state.setTextColor(ContextCompat.getColor(getApplicationContext(), R.color.off_text));
+                    state.setBackgroundColor(ContextCompat.getColor(getApplicationContext(), R.color.off_background));
+                    state.setText("Off Route");
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent sensorEvent) {
+
+        // get the angle around the z-axis rotated
+        float degree = Math.round(sensorEvent.values[0]);
+
+        Location myLoc = logic.getMyLoc();
+        Location targetLocation = logic.getTarget();
+
+
+        GeomagneticField gField = new GeomagneticField((float)myLoc.getLatitude(),(float)myLoc.getLongitude(), (float)myLoc.getAltitude(),myLoc.getTime());
+        degree += gField.getDeclination();
+
+        float bearing = myLoc.bearingTo(targetLocation);
+
+        degree = normalizeDegree((bearing-degree)* -1);
+
+        // create a rotation animation (reverse turn degree degrees)
+        RotateAnimation ra = new RotateAnimation(
+                currentDegree,
+                -degree,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF,
+                0.5f);
+
+        // how long the animation will take place
+        ra.setDuration(210);
+
+        // set the animation after the end of the reservation status
+        ra.setFillAfter(true);
+
+        // Start the animation
+        compass.startAnimation(ra);
+        currentDegree = -degree;
+    }
+
+    private float normalizeDegree(float value) {
+        if (value >= 0.0f && value <= 180.0f) {
+            return value;
+        } else {
+            return 180 + (180 + value);
         }
+    }
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
 
     }
 }

@@ -36,8 +36,6 @@ public class Logic extends Thread {
     private static Logic ref = null;
     //Debugging string
     private static String TAG = "DEBUGGING";
-
-
     // --- Database management variables --- //
 
     //Reference to the firestore database
@@ -66,7 +64,10 @@ public class Logic extends Thread {
     private String id_session;
     //Current session time in millis
     private Long session_time;
-
+    /** Indicates that the user is at least at 5 meters away or less of the route path **/
+    private boolean onRoute;
+    /** reference route's name **/
+    private String routeName;
 
     // --- Location management variables --- //
 
@@ -82,6 +83,9 @@ public class Logic extends Thread {
     private int suggestion;
     private float gap;
 
+    //-- The visible target for the user -- //
+    private Location currentTarget;
+
     // -- Observer pattern to change the interface with the suggestion --- //
     private Synchro observer;
 
@@ -95,6 +99,7 @@ public class Logic extends Thread {
      */
     private Logic() {
         myLoc = new Location(" ");
+        currentTarget = myLoc;
         //Set the value to run thread
         isRunning = true;
         //Initialize the sessions array list
@@ -184,9 +189,9 @@ public class Logic extends Thread {
     /**
      * Ask for the current system time and format it as YYYY/MM/dd - HH:mm:ss.
      * This time will be replaced by the server for the server time.
-     *
      * @return Current time with the format YYYY/MM/dd - HH:mm:ss as a string.
      */
+
     private String getStartTime() {
         @SuppressLint("SimpleDateFormat") DateFormat formatter = new SimpleDateFormat("YYYY/MM/dd - HH:mm:ss");
         return String.valueOf(formatter.format(currentDateAndTime().getTime()));
@@ -208,8 +213,13 @@ public class Logic extends Thread {
      */
     private int calculateSuggestion(){
         float gap = route.getAtoBDistance(ghost.getPosition(), myLoc);
+
         float bikeLength = 2;
+        // the selected value
         float desiredProximity = 4;
+        //The value calculated by the live time of the green wave and the speed of the ghost
+        float greenWaveTime = 5;
+        float greenWaveLength = (float) (greenWaveTime * ghost.getSpeed());
         float errorRange = 1.5f;
 
         if(gap > 0){
@@ -227,7 +237,32 @@ public class Logic extends Thread {
         return suggestion;
     }
 
+    /** Method that define what target to show depending on the current position and the ghost position.
+     * if the ghost in in the same segment than the user, the target will be the ghost
+     * If the ghost is not in the same segment than the user, the target will be the closer corner to the ghost in the user's segment
+     */
+    public Location getTarget(){
+        if(isInSession){
+            currentTarget = ghost.getPosition();
+            //Log.d(TAG, "Current  segment: "+ route.getCurrentSegment());
+            //Log.d(TAG, "Ghost  segment: "+ route.getGhostSegment());
+            if((float)route.getProjection().get("distance") > 5){
+                currentTarget = (Location) route.getProjection().get("projected_loc");
+                onRoute = false;
+            }else{
+                onRoute = true;
+                if(route.getCurrentSegment() == route.getGhostSegment()){
+                    currentTarget = ghost.getPosition();
+                }else if(suggestion < 0){
+                    currentTarget = route.getCurrentSegment().getStart();
+                }else if(suggestion > 0){
+                    currentTarget = route.getCurrentSegment().getEnd();
+                }
+            }
 
+        }
+        return currentTarget;
+    }
 
     /* ---------- DataBase set up methods -----------------*/
 
@@ -303,6 +338,8 @@ public class Logic extends Thread {
             @Override
             public void onSuccess(DocumentSnapshot documentSnapshot) {
                 boolean loop = (boolean) Objects.requireNonNull(documentSnapshot.getData()).get("loop");
+                routeName = documentSnapshot.getId();
+
                 route = new Route(loop);
                 getReferenceRoutePoints(refRoute);
             }
@@ -423,7 +460,6 @@ public class Logic extends Thread {
 
     /* ---------- Methods to write in the data base -----------------*/
 
-
     /**
      * Create the basic information of the new session
      */
@@ -471,5 +507,9 @@ public class Logic extends Thread {
     public float getGap(){
         return gap;
     }
+    public Location getMyLoc(){ return myLoc; }
+    public boolean isOnRoute(){ return onRoute; }
+    public String getRouteName(){ return routeName; }
+
     //public void setBluetoothConnection(BluetoothDevice device){ comunicationBluetooth = new ComunicationBluetooth(device); }
 }

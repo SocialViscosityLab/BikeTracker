@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#1d1d1d</color>
-    <color name="colorPrimaryDark">#181818</color>
-    <color name="colorAccent">#ff4081</color>
-    <color name="highlight">#ffffff</color>
-
-    <color name= "stop">#cf4b4b</color>
-    <color name= "accelerate">#2da389</color>
-    <color name= "perfect">#4591cf</color>
+    <color name ="colorPrimary"> #2DA389 </color>
+    <color name ="colorPrimaryDark"> #000000 </color>
+    <color name ="colorAccent">#62f7c5</color>
+    <color name ="colorSecondary"> #CF4B4B </color>
+    <color name = "background"> #FAFAFA </color>
+    <color name = "header">#414141</color>
+    <color name = "content"> #585858 </color>
+    <color name = "highlight"> #ffffff </color>
+    <color name = "stop"> #cf4b4b </color>
+    <color name = "accelerate"> #2da389 </color>
+    <color name = "perfect"> #4591cf </color>
+    <color name = "on_text"> #098215 </color>
+    <color name = "off_text"> #7E0000 </color>
+    <color name = "on_background"> #C8E1CB </color>
+    <color name = "off_background"> #ECD9D9 </color>
+    <color name = "transparent">#00ffffff</color>
 
 </resources>
